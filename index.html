@@ -7,7 +7,7 @@
 <style>
 :root{--accent:#E3A93C;--bg:rgba(15,16,13,.90);--line:rgba(227,169,60,.22);--text:#ECE6D3;--muted:#8F8A78}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:transparent;overflow:hidden}
+html,body{background:transparent;overflow:hidden;height:100%}   /* высота на всё окно источника — иначе при &scale=2 низ баннера обрезается */
 body{font-family:'Oswald','Arial Narrow',Arial,sans-serif;color:var(--text);padding:6px}
 .mono{font-family:'JetBrains Mono',Consolas,monospace}
 .card{width:420px;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--accent);
@@ -32,7 +32,9 @@ body{font-family:'Oswald','Arial Narrow',Arial,sans-serif;color:var(--text);padd
 .pts{text-align:right;line-height:1;flex:none}
 .pts .n{font-size:36px;color:var(--accent);display:inline-block;transition:transform .25s}
 .pts .n.bump{transform:scale(1.2)}
-.pts small{display:block;font-size:10px;letter-spacing:.18em;color:var(--muted);margin-top:3px;text-transform:uppercase}
+.of9{font-size:15px;color:var(--muted);margin-left:1px}
+.row .of9{font-size:12px}
+.pts small{display:block;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto;font-size:10px;letter-spacing:.18em;color:var(--muted);margin-top:3px;text-transform:uppercase}
 
 /* несколько команд */
 .row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:8px;padding:6px 12px;
@@ -221,8 +223,10 @@ body{font-family:'Oswald','Arial Narrow',Arial,sans-serif;color:var(--text);padd
 const q = new URLSearchParams(location.search);
 /* язык: ?lang=ru (по умолчанию) или ?lang=en / ?lang=eu — английский */
 const LANGS = {
-  ru: {pts: 'баллы',  of: 'из', start: 'старт',     left: 'осталось', fin: 'финиш',    top5: 'итоги · топ-5'},
-  en: {pts: 'points', of: 'of', start: 'starts in', left: 'time left', fin: 'finished', top5: 'final · top 5'},
+  ru: {pts: 'тир',  of: 'из', start: 'старт',     left: 'осталось', fin: 'финиш',    top5: 'итоги · топ-5', done: 'готово',
+      tiers: ['Штурмовые', 'Марксманки', 'Пулемёты', 'ПП', 'Дробовики', 'Болтовки', 'Пистолеты', 'Особое', 'Пестик']},
+  en: {pts: 'tier', of: 'of', start: 'starts in', left: 'time left', fin: 'finished', top5: 'final · top 5', done: 'done',
+      tiers: ['Assault rifles', 'DMRs', 'Machine guns', 'SMGs', 'Shotguns', 'Bolt-actions', 'Pistols', 'Special', 'Toy gun']},
 };
 const LANG = /^(en|eu|eng)$/i.test(q.get('lang') || '') ? 'en' : 'ru';
 const L = LANGS[LANG];
@@ -289,12 +293,19 @@ try { pts = JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){}
 /* полный зачёт всех команд — нужен для итогового ТОП-5 после финиша */
 let all = {};
 try { all = JSON.parse(localStorage.getItem('ggt:all')) || {}; } catch(e){}
+for (const k in all) if (!(all[k] >= 1 && all[k] <= 10)) delete all[k];   // только тиры 1–9 и 10 = готово
+for (const k in pts) if (!(pts[k] >= 1 && pts[k] <= 10)) delete pts[k];
+let rankEnd = {};
 function rankOf(data){
   const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]), r = {};   // одинаковые баллы — одинаковое место
   sorted.forEach(([n, v], i) => r[n] = i && v === sorted[i - 1][1] ? r[sorted[i - 1][0]] : i + 1);
+  // одинаковый тир — общее место; запоминаем, до какого места тянется группа (напр. 2–9)
+  rankEnd = {}; const cnt = {};
+  for (const n in r) cnt[r[n]] = (cnt[r[n]] || 0) + 1;
+  for (const n in r) rankEnd[n] = r[n] + cnt[r[n]] - 1;
   return r;
 }
-rank = rankOf(all);
+rank = rankOf(all);   // заполняет и rankEnd
 const isFinal = () => Date.now() >= CONFIG.end && Object.keys(all).length > 0;
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(pts)); } catch(e){} };
 
@@ -320,8 +331,10 @@ const ICON = {
   medal: '<svg class="ico" viewBox="0 0 24 24"><path d="M8.5 11 6 3h4l2 4.5L14 3h4l-2.5 8"/><circle cx="12" cy="15.5" r="5"/></svg>',
   star:  '<svg class="ico" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>',
 };
-const place = r => !r ? '' : r === 1 ? 'p1' : r === 2 ? 'p2' : r === 3 ? 'p3' : r <= 10 ? 'p10' : '';
-const mark = r => !r ? '' : r === 1 ? ICON.crown : r === 2 ? ICON.medal : r === 3 ? ICON.star : r <= 10 ? '<span class="badge">TOP 10</span>' : '';
+const lvl = (r, e = r) => !r ? 0 : e <= 3 ? r : e <= 10 ? 10 : 0;   // e — конец группы с тем же тиром
+const place = (r, e) => ({1: 'p1', 2: 'p2', 3: 'p3', 10: 'p10'})[lvl(r, e)] || '';
+const mark = (r, e) => ({1: ICON.crown, 2: ICON.medal, 3: ICON.star, 10: '<span class="badge">TOP 10</span>'})[lvl(r, e)] || '';
+const rk = t => !rank[t] ? '' : rankEnd[t] > rank[t] ? rank[t] + '–' + rankEnd[t] : String(rank[t]);
 
 
 /* котик */
@@ -351,27 +364,27 @@ function render(){
   $('ttl').textContent = fin ? 'Gun Game Trios · ' + L.top5 : 'Gun Game Trios';
   if (fin){   // турнир окончен — итоговый ТОП-5 (+ своя команда, если не попала)
     const rows = Object.entries(all).sort((a, b) => b[1] - a[1]);
-    const top = rows.filter(([n]) => rank[n] <= 5);
+    const top = rows.filter(([n]) => rank[n] <= 5).slice(0, 7);   // при общих тирах не раздуваем таблицу
     const mine = rows.filter(([n]) => picked.includes(n) && rank[n] > 5);
-    const row = ([n]) => `<div class="row f ${rank[n] <= 3 ? place(rank[n]) : ''}${picked.includes(n) ? ' me' : ''}" data-t="${esc(n)}">
+    const row = ([n]) => `<div class="row f ${place(rank[n], rankEnd[n]) === 'p10' ? '' : place(rank[n], rankEnd[n])}${picked.includes(n) ? ' me' : ''}" data-t="${esc(n)}">
       <span class="r mono">${rank[n]}</span>
-      <div class="t"><div class="tw"><span class="tx">${esc(n)}</span>${rank[n] <= 3 ? mark(rank[n]) : ''}</div></div>
-      <span class="n mono"></span></div>`;
+      <div class="t"><div class="tw"><span class="tx">${esc(n)}</span>${lvl(rank[n], rankEnd[n]) && lvl(rank[n], rankEnd[n]) <= 3 ? mark(rank[n], rankEnd[n]) : ''}</div></div>
+      <span class="rv"><span class="n mono"></span><span class="of9 mono">/9</span></span></div>`;
     html = top.map(row).join('') + (mine.length ? '<div class="sep">···</div>' + mine.map(row).join('') : '');
   } else if (picked.length === 1){
     const t = picked[0], p = pts[t] || 0;
     const hasCat = CONFIG.players && t === CAT_TEAM;
     const nk = CONFIG.players && TEAMS[t] ? `<span class="nk">${nicks(t)}</span><span class="rk">—</span>` : '';
-    const sub = nk + `<span class="rk">#${rank[t] || ''} ${L.of} ${TOTAL}</span>`;
-    html = `<div class="one ${place(rank[t])}">
-      <div style="min-width:0"><div class="name"><span class="tx">${esc(t)}</span>${mark(rank[t])}</div>${sub ? `<div class="sub${hasCat ? ' has-cat' : ''}">${hasCat ? CAT : ''}${sub}</div>` : ''}</div>
-      <div class="pts" data-t="${esc(t)}"><span class="n mono"></span><small>${L.pts}</small></div></div>`;
+    const sub = nk + `<span class="rk">#${rk(t)} ${L.of} ${TOTAL}</span>`;
+    html = `<div class="one ${place(rank[t], rankEnd[t])}">
+      <div style="min-width:0"><div class="name"><span class="tx">${esc(t)}</span>${mark(rank[t], rankEnd[t])}</div>${sub ? `<div class="sub${hasCat ? ' has-cat' : ''}">${hasCat ? CAT : ''}${sub}</div>` : ''}</div>
+      <div class="pts" data-t="${esc(t)}"><span class="n mono"></span><span class="of9 mono">/9</span><small class="lbl"></small></div></div>`;
   } else {
     const list = [...picked].sort((a, b) => (pts[b] || 0) - (pts[a] || 0));
-    html = list.map((t, i) => `<div class="row ${i === 0 && pts[t] ? 'lead' : ''} ${place(rank[t])}" data-t="${esc(t)}">
+    html = list.map((t, i) => `<div class="row ${i === 0 && pts[t] ? 'lead' : ''} ${place(rank[t], rankEnd[t])}" data-t="${esc(t)}">
       <span class="r mono">${rank[t] || "–"}</span>
-      <div class="t"><div class="tw"><span class="tx">${esc(t)}</span>${mark(rank[t])}</div>${CONFIG.players && TEAMS[t] ? `<span class="rn">${TEAMS[t].join(' · ')}</span>` : ''}</div>
-      <span class="n mono"></span></div>`).join('');
+      <div class="t"><div class="tw"><span class="tx">${esc(t)}</span>${mark(rank[t], rankEnd[t])}</div>${CONFIG.players && TEAMS[t] ? `<span class="rn">${TEAMS[t].join(' · ')}</span>` : ''}</div>
+      <span class="rv"><span class="n mono"></span><span class="of9 mono">/9</span></span></div>`).join('');
   }
   if (html !== lastHTML){   // DOM трогаем только при изменениях, чтобы анимации не перезапускались
     body.innerHTML = lastHTML = html;
@@ -383,7 +396,11 @@ function render(){
   body.querySelectorAll('[data-t]').forEach(el => {
     const t = el.dataset.t, n = el.querySelector('.n');
     const v = (fin ? all[t] : pts[t]) || 0, d = String(v).length;   // баллы обновляем на месте, без пересоздания баннера
-    if (n.textContent !== String(v)) n.textContent = v;
+    const tv = v >= 10 ? '✓' : String(v || '–');   // 10 = все цепочки пройдены
+    if (n.textContent !== tv) n.textContent = tv;
+    const of9 = el.querySelector('.of9'); if (of9) of9.style.display = v >= 10 || !v ? 'none' : '';
+    const lb = el.querySelector('.lbl');
+    if (lb){ const lt = v >= 10 ? L.done : v ? L.tiers[v - 1] || L.pts : L.pts; if (lb.textContent !== lt) lb.textContent = lt; }
     n.classList.toggle('d3', d === 3); n.classList.toggle('d4', d >= 4);
     if (prev[t] !== undefined && prev[t] !== v){ n.classList.add('bump'); setTimeout(() => n.classList.remove('bump'), 260); }
     prev[t] = v;
@@ -415,11 +432,10 @@ function parse(html){
   const out = {};
   for (const b of blocks){
     if (/not available|недоступ|нет данных/i.test(b.txt)) continue;
-    const m = b.txt.match(/(\d+)\s*(?:pts|points?|балл\w*|очк\w*)/i)
-           || b.txt.match(/(?:score|points|баллы|очки)\s*[:\-]?\s*(\d+)/i);
-    if (m && +m[1] <= 99999) out[b.name] = +m[1];   // нереальные числа игнорируем
-    else { const f = [...b.txt.matchAll(/(\d+)\s*\/\s*9\b/g)].slice(0, 3);   // сумма тиров x/9
-           if (f.length) out[b.name] = f.reduce((a, x) => a + +x[1], 0); }
+    // формат сайта: «Tier 2 — Марксманские винтовки»; пройдено всё — «completed / завершено / победитель»
+    if (/complet|finish|winner|заверш|выполн|победит/i.test(b.txt)) { out[b.name] = 10; continue; }
+    const m = b.txt.match(/(?:tier|тир)\s*(\d+)/i);
+    if (m && +m[1] >= 1 && +m[1] <= 9) out[b.name] = +m[1];
   }
   setTotal(new Set(blocks.map(b => b.name)).size);   // сколько команд в командном зачёте (после старта не меняется)
   return Object.keys(out).length ? out : null;
