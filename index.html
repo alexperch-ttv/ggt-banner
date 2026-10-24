@@ -421,7 +421,9 @@ function parse(html){
   (function walk(n){ if (n.nodeType === 3){ const t = n.textContent.trim(); if (t) lines.push(t); }
     else if (!/^(SCRIPT|STYLE|NOSCRIPT)$/.test(n.nodeName)) n.childNodes.forEach(walk); })(doc.body);
   let i = lines.findIndex(l => /participant progress|прогресс участник/i.test(l));
+  DBG.heading = i >= 0;
   if (i < 0) return null;
+  const i0 = i;
   const blocks = []; let cur = null;
   for (i++; i < lines.length; i++){
     if (/^(live stream|прямая трансляция|трансляция)$/i.test(lines[i])) break;
@@ -437,6 +439,14 @@ function parse(html){
     const m = b.txt.match(/(?:tier|тир)\s*(\d+)/i);
     if (m && +m[1] >= 1 && +m[1] <= 9) out[b.name] = +m[1];
   }
+  if (!Object.keys(out).length){   // запасной путь: разметка сайта изменилась — ищем «Название … Tier N» по сплошному тексту
+    const txt = lines.slice(i0).join(' '), esc = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const n of NAMES){
+      const m = txt.match(new RegExp(esc(n) + '[^]{0,60}?(?:tier|тир)\\s*(\\d+)', 'i'));
+      if (m && +m[1] >= 1 && +m[1] <= 9){ out[n] = +m[1]; if (!blocks.some(b => b.name === n)) blocks.push({name: n}); }
+    }
+  }
+  DBG.teams = blocks.length; DBG.tiers = Object.keys(out).length;
   setTotal(new Set(blocks.map(b => b.name)).size);   // сколько команд в командном зачёте (после старта не меняется)
   return Object.keys(out).length ? out : null;
 }
@@ -447,15 +457,18 @@ function parse(html){
    - у каждого OBS свой случайный сдвиг, чтобы все не стучались в одну секунду */
 const POLL = Math.max(10, CONFIG.poll) * 1000, STOP = CONFIG.end + 15 * 60e3;
 let backoff = 0;
+const DBG = {};   // что было при последнем опросе — видно с &debug=1
 async function pull(){
   let ok = false;
-  const ctrl = new AbortController(), to = setTimeout(() => ctrl.abort(), 10e3);
+  const ctrl = new AbortController(), to = setTimeout(() => ctrl.abort(), 20e3);
   try {
     const url = CONFIG.proxy ? CONFIG.proxy + encodeURIComponent(CONFIG.source) : CONFIG.source;
+    DBG.at = new Date().toLocaleTimeString(); DBG.err = ''; DBG.http = '…';
     const r = await fetch(url, {cache: 'no-store', signal: ctrl.signal});
+    DBG.http = r.status;
     if (!r.ok) throw new Error('HTTP ' + r.status);
     ok = true;
-    const text = await r.text();
+    const text = await r.text(); DBG.kb = Math.round(text.length / 1024);
     if (text.length > 3e6) throw new Error('too big');   // страница турнира ~50 КБ; гигантский ответ не разбираем
     const data = parse(text);
     live = !!data;
@@ -464,8 +477,12 @@ async function pull(){
       picked.forEach(t => { if (t in data) pts[t] = data[t]; });
       save(); try { localStorage.setItem('ggt:all', JSON.stringify(all)); } catch(e){}
     }
-  } catch(e){ live = false; }
+  } catch(e){ live = false; DBG.err = e.name === 'AbortError' ? 'таймаут 20 с' : String(e.message || e); }
   clearTimeout(to);
+  if (q.get('debug') === '1'){
+    let d = $('dbg'); if (!d){ d = document.createElement('pre'); d.id = 'dbg'; d.style.cssText = 'margin:6px 0 0;font:11px/1.35 monospace;color:#fff;background:rgba(0,0,0,.75);padding:6px 8px;border-radius:4px;white-space:pre-wrap;max-width:420px'; document.body.appendChild(d); }
+    d.textContent = `опрос ${DBG.at}  HTTP ${DBG.http}  ${DBG.kb ?? '-'} КБ\nзаголовок прогресса: ${DBG.heading ? 'найден' : 'НЕТ'}  команд: ${DBG.teams ?? 0}  с тиром: ${DBG.tiers ?? 0}\n${DBG.err ? 'ошибка: ' + DBG.err : 'ошибок нет'}\nверсия: tiers-2  источник: ${CONFIG.proxy || 'напрямую'}`;
+  }
   backoff = ok ? 0 : Math.min(120e3, backoff ? backoff * 2 : POLL * 2);
   render();
 }
