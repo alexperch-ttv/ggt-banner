@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Gun Game Trios — OBS</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=JetBrains+Mono:wght@700&family=Russo+One&family=Black+Ops+One&family=Montserrat:wght@500;800&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#E3A93C;--bg:rgba(15,16,13,.90);--line:rgba(227,169,60,.22);--text:#ECE6D3;--muted:#8F8A78}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent;overflow:hidden}
+body{font-family:'Oswald','Arial Narrow',Arial,sans-serif;color:var(--text);padding:6px}
+.mono{font-family:'JetBrains Mono',Consolas,monospace}
+.card{width:420px;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--accent);
+  border-radius:6px;overflow:hidden;transform-origin:top left;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.top{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;
+  border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.top b{color:var(--accent);font-weight:500}
+.clock{display:flex;align-items:center;gap:6px;letter-spacing:.04em;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.dot.live{background:#4CD97B;animation:ping 1.6s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(76,217,123,.7)}70%,100%{box-shadow:0 0 0 6px rgba(76,217,123,0)}}
+.dot.err{background:#E0533D}
+
+/* одна команда */
+.one{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 9px;gap:10px}
+.name{font-size:26px;font-weight:700;line-height:1;text-transform:uppercase;letter-spacing:.03em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:15px;color:#BDB7A2;margin-top:5px;letter-spacing:.01em;white-space:nowrap;display:flex;gap:6px}
+.sub .nk{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sub .rk{flex:none;display:inline-block}
+.pts .n.d3{font-size:30px}.pts .n.d4{font-size:25px}
+.pts{text-align:right;line-height:1;flex:none}
+.pts .n{font-size:36px;color:var(--accent);display:inline-block;transition:transform .25s}
+.pts .n.bump{transform:scale(1.2)}
+.pts small{display:block;font-size:10px;letter-spacing:.18em;color:var(--muted);margin-top:3px;text-transform:uppercase}
+
+/* несколько команд */
+.row{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:8px;padding:6px 12px;
+  border-top:1px solid rgba(236,230,211,.06)}
+.row:first-child{border-top:0}
+.row .r{font-size:12px;color:var(--muted)}
+.row .t{font-size:19px;font-weight:700;text-transform:uppercase;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t .rn{display:block;font-size:11px;font-weight:500;color:var(--muted);text-transform:none;margin-top:3px}
+.row .n{font-size:24px;color:var(--accent);transition:transform .25s}
+.row .n.bump{transform:scale(1.2)}
+.row.lead .r{color:var(--accent)}
+
+
+/* итоговый ТОП-5 после финиша */
+.row.f{padding:4px 12px}
+.row.f .t{font-size:17px}
+.row.f .n{font-size:20px}
+.row.p1 .tx{color:#F4C64E}.row.p2 .tx{color:#D6E6F7}.row.p3 .tx{color:#D9905A}
+.row.me .r{position:relative}
+.row.me .r::before{content:'';position:absolute;left:-7px;top:50%;width:3px;height:16px;margin-top:-8px;border-radius:2px;background:var(--accent)}   /* своя команда — маркер, цвет места не перекрывает */
+.row.me .r{color:var(--accent)}
+.sep{text-align:center;color:var(--muted);font-size:12px;line-height:1;padding:1px 0 3px;letter-spacing:.3em}
+
+/* призовые места: цвет ников + значок у названия */
+.name{display:flex;align-items:center;gap:8px}
+.name .tx{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ico{flex:none;width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.badge{flex:none;font-size:11px;letter-spacing:.12em;padding:2px 6px 1px;border:1.5px solid currentColor;border-radius:4px;line-height:1.2}
+.p1 .ico,.p1 .sub{color:#F4C64E}
+.p3 .sub{text-shadow:0 0 10px rgba(217,144,90,.2)}
+.p2 .ico,.p2 .sub{color:#D6E6F7}
+.p3 .ico,.p3 .sub{color:#D9905A}
+.p10 .badge{color:var(--accent)}
+.row .tw{display:flex;align-items:center;gap:6px}
+.row .ico{width:18px;height:18px}
+.row.p1 .rn{color:#F4C64E}.row.p2 .rn{color:#D6E6F7}.row.p3 .rn{color:#D9905A}
+.row .t .ico{color:inherit}
+.row.p1 .ico{color:#F4C64E}.row.p2 .ico{color:#D6E6F7}.row.p3 .ico{color:#D9905A}
+.row .badge{font-size:9px;padding:1px 4px}
+
+/* микро-анимации */
+.ico{animation:pop .55s cubic-bezier(.3,1.7,.5,1) both}
+@keyframes pop{0%{transform:scale(0) rotate(-25deg);opacity:0}100%{transform:none;opacity:1}}
+.p1 .ico{animation:pop .55s cubic-bezier(.3,1.7,.5,1) both,bob 3s ease-in-out .6s infinite}
+@keyframes bob{0%,100%{transform:none}50%{transform:translateY(-2px) rotate(-5deg)}}
+.p2 .ico{transform-origin:50% 0;animation:pop .55s cubic-bezier(.3,1.7,.5,1) both,swing 3.4s ease-in-out .6s infinite}
+@keyframes swing{0%,100%{transform:rotate(0)}25%{transform:rotate(9deg)}75%{transform:rotate(-9deg)}}
+.p3 .ico{animation:pop .55s cubic-bezier(.3,1.7,.5,1) both,twinkle 4s ease-in-out .6s infinite}
+@keyframes twinkle{0%,78%,100%{transform:none}86%{transform:scale(1.2) rotate(18deg)}93%{transform:scale(.95) rotate(-4deg)}}
+.badge{animation:pop .5s cubic-bezier(.3,1.7,.5,1) both,bglow 2.8s ease-in-out .5s infinite}
+@keyframes bglow{0%,100%{box-shadow:0 0 0 rgba(227,169,60,0)}50%{box-shadow:0 0 9px rgba(227,169,60,.55)}}
+/* перелив по никам у 1 и 2 места */
+.p1 .sub > span,.p2 .sub > span{-webkit-background-clip:text;background-clip:text;color:transparent;
+  background-size:300% 100%;animation:shimmer 5s linear infinite}
+.p1 .sub > span{background-image:linear-gradient(100deg,#F4C64E 42%,#FFF4C9 50%,#F4C64E 58%)}
+.p2 .sub > span{background-image:linear-gradient(100deg,#D6E6F7 42%,#FFFFFF 50%,#D6E6F7 58%)}
+@keyframes shimmer{0%{background-position:100% 0}60%,100%{background-position:0 0}}
+/* смена места: строка с местом вспыхивает */
+.one.chg .sub .rk:last-child{animation:rkflash 1.4s ease-out}
+@keyframes rkflash{0%{opacity:0;transform:translateY(8px)}25%{opacity:1;transform:none;filter:brightness(2)}100%{filter:none}}
+
+
+/* котик команды perchikotiki — живёт на строке ников, цикл 5 минут (замкнутый, без рывков):
+   дремлет (zzz) → зевает, потягивается → умывается → гуляет по alexperch_ → прыгает на okinokki →
+   охотится → прыгает на lapps_ → перекат через бок на спинку → дремлет → ловит хвост →
+   возвращается через все ники → охотится → умывается, перекат → засыпает. */
+.sub{position:relative;height:19px;line-height:19px}
+.sub.has-cat{margin-top:16px}
+.cat{position:absolute;top:-10px;left:0;width:21px;height:14px;   /* лапы ровно на верхушках букв (l, k, h) */
+  pointer-events:none;
+  will-change:transform;backface-visibility:hidden;   /* свой постоянный слой: позиция не «переснапывается», когда рядом стартуют другие анимации */
+  animation:cX 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .cy{display:block;position:absolute;inset:0;will-change:transform;backface-visibility:hidden;animation:cY 300s ease-in-out infinite;animation-delay:var(--cd,0s)}
+.cat svg{shape-rendering:geometricPrecision;filter:drop-shadow(0 1px 0 rgba(0,0,0,.7));display:block;   /* тёмный кант снизу отделяет котика от букв того же цвета */
+  width:100%;height:100%;overflow:visible;fill:currentColor;animation:cFl 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .rl{transform-box:view-box;transform-origin:12px 8.35px;animation:cRl 300s ease-in-out infinite;animation-delay:var(--cd,0s)}
+.cat .bd{transform-box:view-box;transform-origin:5px 12.5px;animation:cBd 300s ease-in-out infinite;animation-delay:var(--cd,0s)}
+.cat .hd{transform-box:view-box;transform-origin:16.4px 8.6px;animation:cHd 300s ease-in-out infinite;animation-delay:var(--cd,0s)}
+.cat .eye{transform-box:fill-box;transform-origin:50% 50%;animation:cEy 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .ey{fill:#151510;transform-box:fill-box;transform-origin:50% 50%;animation:cBlink 4.3s linear infinite}
+.cat .gW,.cat .gS,.cat .gT,.cat .gB,.cat .pw{opacity:0}
+.cat .gN{animation:gN 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .gT .hd{transform-origin:16.4px 6.8px}
+.cat .gW{animation:gW 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .gS{animation:gS 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .gT{animation:gT 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .gB{animation:gB 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .pw{animation:gP 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .gW rect{transform-box:fill-box;transform-origin:50% 0;animation:cLeg .45s ease-in-out infinite alternate}
+.cat .gW rect:nth-child(even){animation-direction:alternate-reverse}
+.cat .gB rect{transform-box:fill-box;transform-origin:50% 0;animation:cKick .35s ease-in-out infinite alternate}
+.cat .gB rect:nth-child(even){animation-direction:alternate-reverse}
+.cat .tl{transform-box:fill-box;transform-origin:100% 100%;animation:cTail 3.4s ease-in-out infinite alternate}
+.cat .tA{animation:gTa 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .tS{opacity:0;animation:gZ 300s linear infinite;animation-delay:var(--cd,0s)}   /* во сне хвост поджат и не шевелится */
+.cat .zz{position:absolute;left:1px;top:-6px;width:12px;height:10px;font:700 7px/1 'Oswald',sans-serif;animation:gZ 300s linear infinite;animation-delay:var(--cd,0s)}
+.cat .zz b{position:absolute;left:0;bottom:0;opacity:0;animation:cZ 3s linear infinite}
+.cat .zz b:nth-child(2){animation-delay:1s}.cat .zz b:nth-child(3){animation-delay:2s}
+@keyframes cLeg{from{transform:rotate(28deg)}to{transform:rotate(-28deg)}}
+@keyframes cKick{from{transform:rotate(14deg)}to{transform:rotate(-14deg)}}
+@keyframes cTail{from{transform:rotate(-9deg)}to{transform:rotate(10deg)}}
+@keyframes cBlink{0%,95%,100%{transform:none}97.5%{transform:scaleY(.1)}}
+@keyframes cZ{0%{opacity:0;transform:translate(0,0)}20%{opacity:.9}100%{opacity:0;transform:translate(-3px,-6px)}}
+@keyframes cX{0.0000%{transform:translateX(var(--p0))}14.9000%{transform:translateX(var(--p0))}16.9000%{transform:translateX(var(--p1))}19.3833%{transform:translateX(var(--p1))}21.7167%{transform:translateX(var(--p2))}21.9167%{transform:translateX(var(--p2))}22.2167%{transform:translateX(var(--p3))}22.4167%{transform:translateX(var(--p3))}23.7500%{transform:translateX(var(--p4))}28.4800%{transform:translateX(var(--p4))}28.6800%{transform:translateX(var(--p5))}30.4800%{transform:translateX(var(--p5))}31.1467%{transform:translateX(var(--p6))}31.3467%{transform:translateX(var(--p6))}31.6467%{transform:translateX(var(--p7))}31.8467%{transform:translateX(var(--p7))}32.8467%{transform:translateX(var(--p8))}55.7633%{transform:translateX(var(--p8))}56.7633%{transform:translateX(var(--p7))}56.9633%{transform:translateX(var(--p7))}57.2633%{transform:translateX(var(--p6))}57.4633%{transform:translateX(var(--p6))}58.7967%{transform:translateX(var(--p9))}62.2467%{transform:translateX(var(--p9))}63.5800%{transform:translateX(var(--p3))}63.7800%{transform:translateX(var(--p3))}64.0800%{transform:translateX(var(--p2))}64.2800%{transform:translateX(var(--p2))}65.6133%{transform:translateX(var(--p10))}66.8433%{transform:translateX(var(--p10))}67.0433%{transform:translateX(var(--p11))}69.3767%{transform:translateX(var(--p11))}71.0433%{transform:translateX(var(--p0))}100.0000%{transform:translateX(var(--p0))}}
+@keyframes cY{0.0000%{transform:translateY(0px)}21.9167%{transform:translateY(0px)}22.0667%{transform:translateY(-6px)}22.2167%{transform:translateY(0px)}28.4800%{transform:translateY(0px)}28.5800%{transform:translateY(-5px)}28.6800%{transform:translateY(0px)}31.3467%{transform:translateY(0px)}31.4967%{transform:translateY(-6px)}31.6467%{transform:translateY(0px)}56.9633%{transform:translateY(0px)}57.1133%{transform:translateY(-6px)}57.2633%{transform:translateY(0px)}63.7800%{transform:translateY(0px)}63.9300%{transform:translateY(-6px)}64.0800%{transform:translateY(0px)}66.8433%{transform:translateY(0px)}66.9433%{transform:translateY(-5px)}67.0433%{transform:translateY(0px)}100.0000%{transform:translateY(0px)}}
+@keyframes cFl{0.0000%{transform:scaleX(-1)}14.7000%{transform:scaleX(-1)}14.8667%{transform:scaleX(1)}19.1833%{transform:scaleX(1)}19.3500%{transform:scaleX(-1)}52.8633%{transform:scaleX(-1)}52.9467%{transform:scaleX(1)}52.9633%{transform:scaleX(1)}53.0467%{transform:scaleX(-1)}53.0633%{transform:scaleX(-1)}53.1467%{transform:scaleX(1)}53.1633%{transform:scaleX(1)}53.2467%{transform:scaleX(-1)}53.2633%{transform:scaleX(-1)}53.3467%{transform:scaleX(1)}53.3633%{transform:scaleX(1)}53.4467%{transform:scaleX(-1)}53.4633%{transform:scaleX(-1)}53.5467%{transform:scaleX(1)}53.5633%{transform:scaleX(1)}53.6467%{transform:scaleX(-1)}55.5633%{transform:scaleX(-1)}55.7300%{transform:scaleX(1)}69.1767%{transform:scaleX(1)}69.3433%{transform:scaleX(-1)}100.0000%{transform:scaleX(-1)}}
+@keyframes cBd{0.0000%{transform:translateY(2.6px) rotate(0deg)}9.8000%{transform:translateY(2.6px) rotate(0deg)}10.0000%{transform:translateY(0px) rotate(0deg)}10.2000%{transform:translateY(.6px) rotate(11deg)}10.6000%{transform:translateY(.6px) rotate(11deg)}10.8000%{transform:translateY(0px) rotate(0deg)}21.7667%{transform:translateY(0px) rotate(0deg)}21.8833%{transform:translateY(1.8px) rotate(7deg)}21.9167%{transform:translateY(1.8px) rotate(7deg)}21.9833%{transform:translateY(0px) rotate(0deg)}22.2167%{transform:translateY(0px) rotate(0deg)}22.2833%{transform:translateY(1.8px) rotate(7deg)}22.3000%{transform:translateY(1.8px) rotate(7deg)}22.4000%{transform:translateY(0px) rotate(0deg)}27.5333%{transform:translateY(0px) rotate(0deg)}27.7333%{transform:translateY(1.8px) rotate(7deg)}27.7933%{transform:translateY(1.8px) rotate(5deg)}27.8533%{transform:translateY(1.8px) rotate(7deg)}27.9133%{transform:translateY(1.8px) rotate(5deg)}27.9733%{transform:translateY(1.8px) rotate(7deg)}28.0333%{transform:translateY(1.8px) rotate(5deg)}28.0933%{transform:translateY(1.8px) rotate(7deg)}28.1533%{transform:translateY(1.8px) rotate(5deg)}28.2133%{transform:translateY(1.8px) rotate(7deg)}28.4800%{transform:translateY(1.8px) rotate(7deg)}28.5300%{transform:translateY(0px) rotate(0deg)}28.6800%{transform:translateY(0px) rotate(0deg)}28.7300%{transform:translateY(1.8px) rotate(7deg)}28.7800%{transform:translateY(1.8px) rotate(7deg)}28.8800%{transform:translateY(0px) rotate(0deg)}31.1967%{transform:translateY(0px) rotate(0deg)}31.3133%{transform:translateY(1.8px) rotate(7deg)}31.3467%{transform:translateY(1.8px) rotate(7deg)}31.4133%{transform:translateY(0px) rotate(0deg)}31.6467%{transform:translateY(0px) rotate(0deg)}31.7133%{transform:translateY(1.8px) rotate(7deg)}31.7300%{transform:translateY(1.8px) rotate(7deg)}31.8300%{transform:translateY(0px) rotate(0deg)}32.8967%{transform:translateY(0px) rotate(0deg)}33.1633%{transform:translateY(2.6px) rotate(0deg)}36.1300%{transform:translateY(2.6px) rotate(0deg)}36.2633%{transform:translateY(0px) rotate(0deg)}39.3633%{transform:translateY(0px) rotate(0deg)}39.6633%{transform:translateY(2.6px) rotate(0deg)}51.8300%{transform:translateY(2.6px) rotate(0deg)}52.0300%{transform:translateY(0px) rotate(0deg)}52.2300%{transform:translateY(.6px) rotate(11deg)}52.6300%{transform:translateY(.6px) rotate(11deg)}52.8300%{transform:translateY(0px) rotate(0deg)}56.8133%{transform:translateY(0px) rotate(0deg)}56.9300%{transform:translateY(1.8px) rotate(7deg)}56.9633%{transform:translateY(1.8px) rotate(7deg)}57.0300%{transform:translateY(0px) rotate(0deg)}57.2633%{transform:translateY(0px) rotate(0deg)}57.3300%{transform:translateY(1.8px) rotate(7deg)}57.3467%{transform:translateY(1.8px) rotate(7deg)}57.4467%{transform:translateY(0px) rotate(0deg)}63.6300%{transform:translateY(0px) rotate(0deg)}63.7467%{transform:translateY(1.8px) rotate(7deg)}63.7800%{transform:translateY(1.8px) rotate(7deg)}63.8467%{transform:translateY(0px) rotate(0deg)}64.0800%{transform:translateY(0px) rotate(0deg)}64.1467%{transform:translateY(1.8px) rotate(7deg)}64.1633%{transform:translateY(1.8px) rotate(7deg)}64.2633%{transform:translateY(0px) rotate(0deg)}65.8967%{transform:translateY(0px) rotate(0deg)}66.0967%{transform:translateY(1.8px) rotate(7deg)}66.1567%{transform:translateY(1.8px) rotate(5deg)}66.2167%{transform:translateY(1.8px) rotate(7deg)}66.2767%{transform:translateY(1.8px) rotate(5deg)}66.3367%{transform:translateY(1.8px) rotate(7deg)}66.3967%{transform:translateY(1.8px) rotate(5deg)}66.4567%{transform:translateY(1.8px) rotate(7deg)}66.5167%{transform:translateY(1.8px) rotate(5deg)}66.5767%{transform:translateY(1.8px) rotate(7deg)}66.8433%{transform:translateY(1.8px) rotate(7deg)}66.8933%{transform:translateY(0px) rotate(0deg)}67.0433%{transform:translateY(0px) rotate(0deg)}67.0933%{transform:translateY(1.8px) rotate(7deg)}67.1433%{transform:translateY(1.8px) rotate(7deg)}67.2433%{transform:translateY(0px) rotate(0deg)}71.0933%{transform:translateY(0px) rotate(0deg)}71.3600%{transform:translateY(2.6px) rotate(0deg)}73.6600%{transform:translateY(2.6px) rotate(0deg)}73.7933%{transform:translateY(0px) rotate(0deg)}76.5600%{transform:translateY(0px) rotate(0deg)}76.8600%{transform:translateY(2.6px) rotate(0deg)}100.0000%{transform:translateY(2.6px) rotate(0deg)}}
+@keyframes cRl{0.0000%{transform:translateY(0px) scaleY(1)}36.1300%{transform:translateY(0px) scaleY(1)}36.4300%{transform:translateY(.8px) scaleY(.08)}36.7300%{transform:translateY(1.2px) scaleY(-1)}39.0633%{transform:translateY(1.2px) scaleY(-1)}39.3633%{transform:translateY(.8px) scaleY(.08)}39.6633%{transform:translateY(0px) scaleY(1)}73.6600%{transform:translateY(0px) scaleY(1)}73.9600%{transform:translateY(.8px) scaleY(.08)}74.2600%{transform:translateY(1.2px) scaleY(-1)}76.2600%{transform:translateY(1.2px) scaleY(-1)}76.5600%{transform:translateY(.8px) scaleY(.08)}76.8600%{transform:translateY(0px) scaleY(1)}100.0000%{transform:translateY(0px) scaleY(1)}}
+@keyframes cHd{0.0000%{transform:rotate(0deg)}9.0333%{transform:rotate(0deg)}9.2667%{transform:rotate(-28deg)}9.5667%{transform:rotate(-28deg)}9.7667%{transform:rotate(0deg)}11.4667%{transform:rotate(0deg)}11.5500%{transform:rotate(30deg)}11.6167%{transform:rotate(22deg)}11.6833%{transform:rotate(30deg)}11.7667%{transform:rotate(0deg)}11.8333%{transform:rotate(0deg)}11.9167%{transform:rotate(30deg)}11.9833%{transform:rotate(22deg)}12.0500%{transform:rotate(30deg)}12.1333%{transform:rotate(0deg)}12.2000%{transform:rotate(0deg)}12.2833%{transform:rotate(30deg)}12.3500%{transform:rotate(22deg)}12.4167%{transform:rotate(30deg)}12.5000%{transform:rotate(0deg)}12.5667%{transform:rotate(0deg)}12.6500%{transform:rotate(30deg)}12.7167%{transform:rotate(22deg)}12.7833%{transform:rotate(30deg)}12.8667%{transform:rotate(0deg)}12.9333%{transform:rotate(0deg)}13.0167%{transform:rotate(30deg)}13.0833%{transform:rotate(22deg)}13.1500%{transform:rotate(30deg)}13.2333%{transform:rotate(0deg)}13.3667%{transform:rotate(0deg)}13.5667%{transform:rotate(-13deg)}13.8333%{transform:rotate(-13deg)}14.0333%{transform:rotate(9deg)}14.3000%{transform:rotate(9deg)}14.5000%{transform:rotate(0deg)}17.5167%{transform:rotate(0deg)}17.7167%{transform:rotate(-13deg)}18.1000%{transform:rotate(-13deg)}18.3000%{transform:rotate(9deg)}18.6833%{transform:rotate(9deg)}18.8833%{transform:rotate(0deg)}24.3667%{transform:rotate(0deg)}24.5667%{transform:rotate(-13deg)}24.8333%{transform:rotate(-13deg)}25.0333%{transform:rotate(9deg)}25.3000%{transform:rotate(9deg)}25.5000%{transform:rotate(0deg)}25.7667%{transform:rotate(0deg)}25.8500%{transform:rotate(30deg)}25.9167%{transform:rotate(22deg)}25.9833%{transform:rotate(30deg)}26.0667%{transform:rotate(0deg)}26.1333%{transform:rotate(0deg)}26.2167%{transform:rotate(30deg)}26.2833%{transform:rotate(22deg)}26.3500%{transform:rotate(30deg)}26.4333%{transform:rotate(0deg)}26.5000%{transform:rotate(0deg)}26.5833%{transform:rotate(30deg)}26.6500%{transform:rotate(22deg)}26.7167%{transform:rotate(30deg)}26.8000%{transform:rotate(0deg)}26.8667%{transform:rotate(0deg)}26.9500%{transform:rotate(30deg)}27.0167%{transform:rotate(22deg)}27.0833%{transform:rotate(30deg)}27.1667%{transform:rotate(0deg)}29.4800%{transform:rotate(0deg)}29.6800%{transform:rotate(-13deg)}29.8300%{transform:rotate(-13deg)}30.0300%{transform:rotate(9deg)}30.1800%{transform:rotate(9deg)}30.3800%{transform:rotate(0deg)}34.5967%{transform:rotate(0deg)}34.6800%{transform:rotate(30deg)}34.7467%{transform:rotate(22deg)}34.8133%{transform:rotate(30deg)}34.8967%{transform:rotate(0deg)}34.9633%{transform:rotate(0deg)}35.0467%{transform:rotate(30deg)}35.1133%{transform:rotate(22deg)}35.1800%{transform:rotate(30deg)}35.2633%{transform:rotate(0deg)}35.3300%{transform:rotate(0deg)}35.4133%{transform:rotate(30deg)}35.4800%{transform:rotate(22deg)}35.5467%{transform:rotate(30deg)}35.6300%{transform:rotate(0deg)}35.6967%{transform:rotate(0deg)}35.7800%{transform:rotate(30deg)}35.8467%{transform:rotate(22deg)}35.9133%{transform:rotate(30deg)}35.9967%{transform:rotate(0deg)}51.0633%{transform:rotate(0deg)}51.2967%{transform:rotate(-28deg)}51.5967%{transform:rotate(-28deg)}51.7967%{transform:rotate(0deg)}54.2300%{transform:rotate(0deg)}54.4300%{transform:rotate(-13deg)}54.6967%{transform:rotate(-13deg)}54.8967%{transform:rotate(9deg)}55.1633%{transform:rotate(9deg)}55.3633%{transform:rotate(0deg)}59.4800%{transform:rotate(0deg)}59.5633%{transform:rotate(30deg)}59.6300%{transform:rotate(22deg)}59.6967%{transform:rotate(30deg)}59.7800%{transform:rotate(0deg)}59.8467%{transform:rotate(0deg)}59.9300%{transform:rotate(30deg)}59.9967%{transform:rotate(22deg)}60.0633%{transform:rotate(30deg)}60.1467%{transform:rotate(0deg)}60.2133%{transform:rotate(0deg)}60.2967%{transform:rotate(30deg)}60.3633%{transform:rotate(22deg)}60.4300%{transform:rotate(30deg)}60.5133%{transform:rotate(0deg)}60.5800%{transform:rotate(0deg)}60.6633%{transform:rotate(30deg)}60.7300%{transform:rotate(22deg)}60.7967%{transform:rotate(30deg)}60.8800%{transform:rotate(0deg)}61.0133%{transform:rotate(0deg)}61.2133%{transform:rotate(-13deg)}61.3633%{transform:rotate(-13deg)}61.5633%{transform:rotate(9deg)}61.7133%{transform:rotate(9deg)}61.9133%{transform:rotate(0deg)}67.8433%{transform:rotate(0deg)}68.0433%{transform:rotate(-13deg)}68.3100%{transform:rotate(-13deg)}68.5100%{transform:rotate(9deg)}68.7767%{transform:rotate(9deg)}68.9767%{transform:rotate(0deg)}72.1267%{transform:rotate(0deg)}72.2100%{transform:rotate(30deg)}72.2767%{transform:rotate(22deg)}72.3433%{transform:rotate(30deg)}72.4267%{transform:rotate(0deg)}72.4933%{transform:rotate(0deg)}72.5767%{transform:rotate(30deg)}72.6433%{transform:rotate(22deg)}72.7100%{transform:rotate(30deg)}72.7933%{transform:rotate(0deg)}72.8600%{transform:rotate(0deg)}72.9433%{transform:rotate(30deg)}73.0100%{transform:rotate(22deg)}73.0767%{transform:rotate(30deg)}73.1600%{transform:rotate(0deg)}73.2267%{transform:rotate(0deg)}73.3100%{transform:rotate(30deg)}73.3767%{transform:rotate(22deg)}73.4433%{transform:rotate(30deg)}73.5267%{transform:rotate(0deg)}100.0000%{transform:rotate(0deg)}}
+@keyframes cEy{0.0000%{transform:scaleY(.15)}8.8667%{transform:scaleY(.15)}9.0000%{transform:scaleY(1)}40.6967%{transform:scaleY(1)}40.8633%{transform:scaleY(.15)}50.8967%{transform:scaleY(.15)}51.0300%{transform:scaleY(1)}77.5600%{transform:scaleY(1)}77.7267%{transform:scaleY(.15)}100.0000%{transform:scaleY(.15)}}
+@keyframes gW{0.0000%{opacity:0}14.9000%{opacity:0}14.9400%{opacity:1}16.9000%{opacity:1}16.9400%{opacity:0}19.3833%{opacity:0}19.4233%{opacity:1}21.7167%{opacity:1}21.7567%{opacity:0}22.4167%{opacity:0}22.4567%{opacity:1}23.7500%{opacity:1}23.7900%{opacity:0}30.4800%{opacity:0}30.5200%{opacity:1}31.1467%{opacity:1}31.1867%{opacity:0}31.8467%{opacity:0}31.8867%{opacity:1}32.8467%{opacity:1}32.8867%{opacity:0}55.7633%{opacity:0}55.8033%{opacity:1}56.7633%{opacity:1}56.8033%{opacity:0}57.4633%{opacity:0}57.5033%{opacity:1}58.7967%{opacity:1}58.8367%{opacity:0}62.2467%{opacity:0}62.2867%{opacity:1}63.5800%{opacity:1}63.6200%{opacity:0}64.2800%{opacity:0}64.3200%{opacity:1}65.6133%{opacity:1}65.6533%{opacity:0}69.3767%{opacity:0}69.4167%{opacity:1}71.0433%{opacity:1}71.0833%{opacity:0}100.0000%{opacity:0}}
+@keyframes gS{0.0000%{opacity:0}9.8000%{opacity:0}9.8400%{opacity:1}10.8333%{opacity:1}10.8733%{opacity:0}16.9000%{opacity:0}16.9400%{opacity:1}16.9500%{opacity:1}16.9900%{opacity:0}21.7167%{opacity:0}21.7567%{opacity:1}22.4167%{opacity:1}22.4567%{opacity:0}23.7500%{opacity:0}23.7900%{opacity:1}23.8000%{opacity:1}23.8400%{opacity:0}27.3000%{opacity:0}27.3400%{opacity:1}28.9133%{opacity:1}28.9533%{opacity:0}31.1467%{opacity:0}31.1867%{opacity:1}31.8467%{opacity:1}31.8867%{opacity:0}32.8467%{opacity:0}32.8867%{opacity:1}32.8967%{opacity:1}32.9367%{opacity:0}51.8300%{opacity:0}51.8700%{opacity:1}53.6633%{opacity:1}53.7033%{opacity:0}56.7633%{opacity:0}56.8033%{opacity:1}57.4633%{opacity:1}57.5033%{opacity:0}58.7967%{opacity:0}58.8367%{opacity:1}58.8467%{opacity:1}58.8867%{opacity:0}62.0133%{opacity:0}62.0533%{opacity:1}62.2467%{opacity:1}62.2867%{opacity:0}63.5800%{opacity:0}63.6200%{opacity:1}64.2800%{opacity:1}64.3200%{opacity:0}65.6133%{opacity:0}65.6533%{opacity:1}67.2767%{opacity:1}67.3167%{opacity:0}71.0433%{opacity:0}71.0833%{opacity:1}71.0933%{opacity:1}71.1333%{opacity:0}100.0000%{opacity:0}}
+@keyframes gT{0.0000%{opacity:0}10.8333%{opacity:0}10.9167%{opacity:1}14.9000%{opacity:1}14.9833%{opacity:0}16.9500%{opacity:0}17.0333%{opacity:1}19.3833%{opacity:1}19.4667%{opacity:0}23.8000%{opacity:0}23.8833%{opacity:1}27.3000%{opacity:1}27.3833%{opacity:0}28.9133%{opacity:0}28.9967%{opacity:1}30.4800%{opacity:1}30.5633%{opacity:0}53.6633%{opacity:0}53.7467%{opacity:1}55.7633%{opacity:1}55.8467%{opacity:0}58.8467%{opacity:0}58.9300%{opacity:1}62.0133%{opacity:1}62.0967%{opacity:0}67.2767%{opacity:0}67.3600%{opacity:1}69.3767%{opacity:1}69.4600%{opacity:0}100.0000%{opacity:0}}
+@keyframes gN{0.0000%{opacity:1}10.8333%{opacity:1}10.9167%{opacity:0}14.9000%{opacity:0}14.9833%{opacity:1}16.9500%{opacity:1}17.0333%{opacity:0}19.3833%{opacity:0}19.4667%{opacity:1}23.8000%{opacity:1}23.8833%{opacity:0}27.3000%{opacity:0}27.3833%{opacity:1}28.9133%{opacity:1}28.9967%{opacity:0}30.4800%{opacity:0}30.5633%{opacity:1}53.6633%{opacity:1}53.7467%{opacity:0}55.7633%{opacity:0}55.8467%{opacity:1}58.8467%{opacity:1}58.9300%{opacity:0}62.0133%{opacity:0}62.0967%{opacity:1}67.2767%{opacity:1}67.3600%{opacity:0}69.3767%{opacity:0}69.4600%{opacity:1}100.0000%{opacity:1}}
+@keyframes gB{0.0000%{opacity:0}36.4300%{opacity:0}36.4700%{opacity:1}39.0633%{opacity:1}39.1033%{opacity:0}73.9600%{opacity:0}74.0000%{opacity:1}76.2600%{opacity:1}76.3000%{opacity:0}100.0000%{opacity:0}}
+@keyframes gP{0.0000%{opacity:0}11.4000%{opacity:0}11.4400%{opacity:1}13.3000%{opacity:1}13.3400%{opacity:0}25.7000%{opacity:0}25.7400%{opacity:1}27.2333%{opacity:1}27.2733%{opacity:0}34.5300%{opacity:0}34.5700%{opacity:1}36.0633%{opacity:1}36.1033%{opacity:0}59.4133%{opacity:0}59.4533%{opacity:1}60.9467%{opacity:1}60.9867%{opacity:0}72.0600%{opacity:0}72.1000%{opacity:1}73.5933%{opacity:1}73.6333%{opacity:0}100.0000%{opacity:0}}
+@keyframes gZ{0.0000%{opacity:1}8.8667%{opacity:1}8.9067%{opacity:0}40.8967%{opacity:0}40.9367%{opacity:1}50.8967%{opacity:1}50.9367%{opacity:0}77.7600%{opacity:0}77.8000%{opacity:1}100.0000%{opacity:1}}
+@keyframes gTa{0.0000%{opacity:0}8.8667%{opacity:0}8.9067%{opacity:1}40.8967%{opacity:1}40.9367%{opacity:0}50.8967%{opacity:0}50.9367%{opacity:1}77.7600%{opacity:1}77.8000%{opacity:0}100.0000%{opacity:0}}
+
+/* ========================= ТЕМЫ: &style=... ========================= */
+
+/* glass — светлое «стекло», мягко и современно */
+.s-glass{--accent:#7FF0C8;--text:#fff;--muted:rgba(255,255,255,.62);--line:rgba(255,255,255,.16)}
+.s-glass, .s-glass .mono{font-family:'Montserrat',Arial,sans-serif}
+.s-glass .card{background:linear-gradient(135deg,rgba(40,44,60,.62),rgba(20,22,32,.55));border:1px solid rgba(255,255,255,.18);
+  border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.18)}
+.s-glass .top{border:0;padding:8px 14px 0;letter-spacing:.1em;font-weight:500}
+.s-glass .top b{color:var(--muted)}
+.s-glass .name{font-weight:800;text-transform:none;font-size:25px;letter-spacing:-.01em}
+.s-glass .pts .n,.s-glass .row .n{font-weight:800;background:linear-gradient(135deg,#7FF0C8,#69B7FF);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.s-glass .one{padding:6px 14px 12px}
+.s-glass .row .t{text-transform:none;font-weight:800}
+
+/* neon — киберпанк, свечение */
+.s-neon{--accent:#FF3DF2;--text:#EFFFFF;--muted:#5FE7F5;--line:rgba(25,240,255,.35)}
+.s-neon, .s-neon .name, .s-neon .row .t{font-family:'Russo One','Oswald',sans-serif}
+.s-neon .card{background:rgba(6,6,14,.92);border:1px solid var(--line);border-radius:0;
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
+  box-shadow:inset 0 0 24px rgba(25,240,255,.12)}
+.s-neon .card::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px)}
+.s-neon .card{position:relative}
+.s-neon .top b{color:var(--muted);text-shadow:0 0 8px rgba(95,231,245,.6)}
+.s-neon .name{font-weight:400;text-shadow:0 0 10px rgba(95,231,245,.45)}
+.s-neon .pts .n,.s-neon .row .n{text-shadow:0 0 6px #FF3DF2,0 0 18px rgba(255,61,242,.6)}
+
+/* mil — армейский: олива, трафарет, «скотч» */
+.s-mil{--accent:#D8C26A;--text:#E9E6D2;--muted:#A9AA8C;--line:rgba(0,0,0,.35)}
+.s-mil .card{background:linear-gradient(180deg,rgba(58,64,42,.95),rgba(40,45,30,.95));border:1px solid #1d2015;border-left:0;border-radius:2px}
+.s-mil .top{background:repeating-linear-gradient(135deg,#D8C26A 0 14px,#C9B158 14px 28px);color:#1e1f14;border:0;font-weight:700}
+.s-mil .top b{color:#1e1f14;font-weight:700}
+.s-mil .dot:not(.live):not(.err){background:#1e1f14}
+.s-mil .name,.s-mil .row .t{font-family:'Black Ops One','Oswald',sans-serif;font-weight:400;letter-spacing:.04em}
+.s-mil .pts{background:#D8C26A;color:#1e1f14;padding:6px 10px;border-radius:2px}
+.s-mil .pts .n{color:#1e1f14;font-size:32px}
+.s-mil .pts small{color:#3b3c2a}
+.s-mil .row .n{color:var(--accent)}
+
+/* pill — минимальная плашка в одну строку */
+.s-pill .card{width:auto;display:inline-flex;border-radius:999px;border-left:1px solid var(--line);padding-left:6px}
+.s-pill .top{border:0;padding:0 18px 0 4px;order:2}
+.s-pill .top > span:first-child{display:none}
+.s-pill .one{padding:6px 16px 6px 12px;gap:14px}
+.s-pill .sub,.s-pill .pts small{display:none}
+.s-pill .name{font-size:20px}
+.s-pill .pts .n{font-size:24px}
+.s-pill .one::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="top"><span><b id="ttl">Gun Game Trios</b></span><span class="clock"><i class="dot" id="dot"></i><span class="mono" id="clock"></span></span></div>
+  <div id="body"></div>
+</div>
+<script>
+/* ===================== ВСЁ МЕНЯЕТСЯ В ССЫЛКЕ =====================
+   ...banner.html?lang=ru&team=Pride           — язык (ru / en, можно eu) и одна команда
+   ...banner.html?team=Pride,BSG,perchikotiki  — до 3 команд списком
+   &scale=1.3      — масштаб
+   &players=0      — скрыть ники игроков
+   &timer=0        — скрыть таймер
+   &style=glass | neon | mil | pill  — тема (без параметра — янтарная)
+   &proxy=...      — префикс CORS-прокси, если сайт не отдаёт данные
+=================================================================== */
+const q = new URLSearchParams(location.search);
+/* язык: ?lang=ru (по умолчанию) или ?lang=en / ?lang=eu — английский */
+const LANGS = {
+  ru: {pts: 'баллы',  of: 'из', start: 'старт',     left: 'осталось', fin: 'финиш',    top5: 'итоги · топ-5'},
+  en: {pts: 'points', of: 'of', start: 'starts in', left: 'time left', fin: 'finished', top5: 'final · top 5'},
+};
+const LANG = /^(en|eu|eng)$/i.test(q.get('lang') || '') ? 'en' : 'ru';
+const L = LANGS[LANG];
+document.documentElement.lang = LANG;
+const CONFIG = {
+  team:    q.get('team') || 'perchikotiki',
+  scale:   Math.min(4, Math.max(.3, +q.get('scale') || 1)),
+  players: q.get('players') !== '0',
+  proxy:   q.get('proxy') || '',
+  poll:    Math.min(600, Math.max(10, +q.get('poll') || 60)),   // 10…600 сек, мусор → 60
+  source:  'https://mrsouer.com/events/gun_game_trios',
+  start:   Date.parse('2026-10-24T13:00:00Z'),   // 16:00 МСК
+  end:     Date.parse('2026-10-24T18:00:00Z'),   // 21:00 МСК
+};
+
+const TEAMS = {
+ '3GUNDONES':['lizamilande','icefantatw','xyoungdevil'],
+ '3Men1Bush':['ideadlin3','stepbro_deboss','cookeeh'],
+ 'AmazingTeam':['mazoni','7evenc1oud','mazy337'],
+ 'BabiyPropab':['silly_raccon','borodatos_tv','myrzilka_ttv'],
+ 'BobersOver30':['nemonas20','mrgwhites','saberino'],
+ 'BruneyTeam':['mrlacera','tapochekd_ttv','oiligf'],
+ 'BSG':['mephyyyd','dittsmoralen','zer0fun_'],
+ 'BTPOEMKUHbI':['clayton_57','shevchuha','gazonux_ttv'],
+ 'BushDivision':['greatemaple','assasinunion','swagapotrebitel'],
+ 'CAOS':['sootielive','grizzly_vp','bobtographer'],
+ 'CoolBlackWeqend':['coolestjonas','weqend','black_moon_'],
+ 'GASterBAITERs':['h4rd111','magiik777','kommun9ka'],
+ 'KapitunTeam':['kapi_tun','5traiker','helltoy_ttv'],
+ 'KEPARIKI':['f1nno4ka','fiolochka','cosmooninja'],
+ 'KittenLitter':['catzerela','grouchypiegaming','hugeenzo'],
+ 'LaskiBezSmazki':['ta_samaya_lera','ama_ria','byko4ka'],
+ 'Maidenless':['fr0styo_','fateldenlord','szkibo'],
+ 'MMKXD':['dead1ywanderer','teheror19','mmk_kot'],
+ 'NineLives':['kuper13ttv','catman22_ttv','zhenie__'],
+ 'NorvinskGuard':['assinsttv','itsmeripttv','theoddone_ttv'],
+ 'perchikotiki':['lapps_','okinokki','alexperch_'],
+ 'Pride':['rrr_leva','nrz_tv','kiska_hunter'],
+ 'PUNISHERS':['korzhik_ttv','geffest_ttv','glame57'],
+ 'PVSE':['ttv_kpot','zhilikoff','neveroyatniyttv'],
+ 'Schlitzerbande':['marbultv','schlaubiyo','sarmtv'],
+ 'Spookichi':['rqk_og','c4actbe_tv','shiroyama56'],
+ 'TeamBaguette':['golemastox','paulool_','thevilwolf74'],
+ 'TeamMomo':['ellierealm','zsoumei','imjuck'],
+ 'TeamSALATA':['snuffistaken','mortiusan','mrgrandback'],
+ 'Teletubbies':['canitayzer','ponommera','nemoflexxx'],
+ 'TheItalianJob':['ghinzo_o','explosiv_tv','slogia_'],
+ 'ThreeMusketeers':['pezziplays','ish_z','hyppoferrox'],
+ 'TriGada':['t0mmygl_tv','hellowinxd','weeweecktor'],
+ 'TripleThreat':['blitzergirl','lorektv','elfoxeyy'],
+ 'WateringCan':['dormsmanager','derflo26','godlyrandy'],
+ 'ZADURENIE':['big_man_63_rus','vls_ww','scolopendra_ww'],
+};
+const NAMES = Object.keys(TEAMS), LOWER = NAMES.map(n => n.toLowerCase());
+let TOTAL = NAMES.length;
+// название из ссылки — без учёта регистра; неизвестное показываем как есть
+const picked = CONFIG.team.split(',').map(s => s.trim()).filter(Boolean).slice(0, 3)
+  .map(s => NAMES[LOWER.indexOf(s.toLowerCase())] || s);
+
+/* баллы с сайта (последние значения сохраняются между перезапусками OBS) */
+const KEY = 'ggt:' + picked.join(',');
+let pts = {}, rank = {}, live = false;
+try { pts = JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){}
+/* полный зачёт всех команд — нужен для итогового ТОП-5 после финиша */
+let all = {};
+try { all = JSON.parse(localStorage.getItem('ggt:all')) || {}; } catch(e){}
+function rankOf(data){
+  const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]), r = {};   // одинаковые баллы — одинаковое место
+  sorted.forEach(([n, v], i) => r[n] = i && v === sorted[i - 1][1] ? r[sorted[i - 1][0]] : i + 1);
+  return r;
+}
+rank = rankOf(all);
+const isFinal = () => Date.now() >= CONFIG.end && Object.keys(all).length > 0;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(pts)); } catch(e){} };
+
+/* число команд: до старта обновляется, после старта замораживается на последнем значении */
+let haveTotal = false;
+try { const t = +localStorage.getItem('ggt:total'); if (t){ TOTAL = t; haveTotal = true; } } catch(e){}
+function setTotal(n){
+  if (!n) return;
+  if (Date.now() >= CONFIG.start && haveTotal) return;   // после старта — заморожено
+  TOTAL = n; haveTotal = true;
+  try { localStorage.setItem('ggt:total', n); } catch(e){}
+}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
+$('card').style.transform = `scale(${CONFIG.scale})`;
+const prev = {};
+
+
+/* призовые значки */
+const ICON = {
+  crown: '<svg class="ico" viewBox="0 0 24 24"><path d="M4 18h16M5 15.5 3.5 7l5 3.8L12 4.5l3.5 6.3 5-3.8L19 15.5z"/></svg>',
+  medal: '<svg class="ico" viewBox="0 0 24 24"><path d="M8.5 11 6 3h4l2 4.5L14 3h4l-2.5 8"/><circle cx="12" cy="15.5" r="5"/></svg>',
+  star:  '<svg class="ico" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>',
+};
+const place = r => !r ? '' : r === 1 ? 'p1' : r === 2 ? 'p2' : r === 3 ? 'p3' : r <= 10 ? 'p10' : '';
+const mark = r => !r ? '' : r === 1 ? ICON.crown : r === 2 ? ICON.medal : r === 3 ? ICON.star : r <= 10 ? '<span class="badge">TOP 10</span>' : '';
+
+
+/* котик */
+const CAT_POS = [[2, 0.2], [2, 0.95], [2, 0], [1, 1], [1, 0.55], [1, 0.15], [1, 0], [0, 1], [0, 0.4], [1, 0.5], [2, 0.6], [2, 0.85]];   // [ник, доля ширины] для каждой точки остановки
+const CAT_TEAM = 'perchikotiki';   // котик живёт только у этой команды
+const CAT = `<i class="cat"><i class="cy"><span class="zz"><b>z</b><b>z</b><b>z</b></span><svg viewBox="0 0 24 16"><g class="rl"><g class="gW"><rect x="6" y="11.5" width="1.5" height="4" rx=".7"/><rect x="8.4" y="11.5" width="1.5" height="4" rx=".7"/><rect x="13.2" y="11.5" width="1.5" height="4" rx=".7"/><rect x="15.6" y="11.5" width="1.5" height="4" rx=".7"/></g><g class="gS"><rect x="6" y="11.5" width="1.5" height="4" rx=".7"/><rect x="8.4" y="11.5" width="1.5" height="4" rx=".7"/><rect x="13.2" y="11.5" width="1.5" height="4" rx=".7"/><rect x="15.6" y="11.5" width="1.5" height="4" rx=".7"/></g><g class="gB"><rect x="6" y="12" width="1.5" height="2.6" rx=".7"/><rect x="8.4" y="12" width="1.5" height="2.6" rx=".7"/><rect x="13.2" y="12" width="1.5" height="2.6" rx=".7"/><rect x="15.6" y="12" width="1.5" height="2.6" rx=".7"/></g><g class="gN"><g class="bd"><g class="tA"><path class="tl" d="M5 9 C1.6 8.4 1.2 4.2 3.4 2.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g><path class="tS" d="M5 9.4 C2.6 10.6 3.4 13.6 7 13.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><ellipse cx="11.2" cy="9.4" rx="7" ry="4"/><ellipse class="pw" cx="20.4" cy="9.8" rx="1.7" ry="1.3"/><g class="hd"><circle cx="18.6" cy="6.4" r="3.3"/><path d="M16.2 4.6 16.6 1.2 18.6 3.4zM18.9 3.2 21.0 1.4 21.3 4.6z"/><g class="eye"><circle class="ey" cx="19.8" cy="6" r=".55"/></g></g></g></g><g class="gT"><path class="tl" d="M7.4 15.2 C3.6 15.6 2.8 12.6 4.6 11.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><ellipse cx="10.6" cy="12.2" rx="4.6" ry="3.4"/><ellipse cx="14.6" cy="9.4" rx="3" ry="4.6" transform="rotate(-14 14.6 9.4)"/><rect x="14.2" y="10" width="1.7" height="5.5" rx=".8"/><rect x="16.1" y="10" width="1.7" height="5.5" rx=".8"/><ellipse class="pw" cx="19.6" cy="7.4" rx="1.6" ry="1.25"/><g class="hd"><circle cx="17.2" cy="4.6" r="3.3"/><path d="M14.8 2.8 15.2 -0.6 17.2 1.6zM17.5 1.4 19.6 -0.4 19.9 2.8z"/><g class="eye"><circle class="ey" cx="18.4" cy="4.2" r=".55"/></g></g></g></g></svg></i></i>`;
+const nicks = t => TEAMS[t].map(n => t === CAT_TEAM ? `<span class="nm">${n}</span>` : n).join(' · ');
+function placeCat(){
+  const sub = document.querySelector('.sub.has-cat'), cat = sub && sub.querySelector('.cat');
+  if (!cat) return;
+  const nk = sub.querySelector('.nk'), lim = nk.offsetLeft + nk.clientWidth;
+  const A = [], Wd = [];
+  sub.querySelectorAll('.nm').forEach((el, i) => {   // опорные точки: начало и ширина каждого ника
+    const x = Math.min(el.offsetLeft, lim - 21), w = Math.max(21, Math.min(el.offsetWidth, lim - x));
+    A[i] = x; Wd[i] = w; cat.style.setProperty('--a' + i, x + 'px'); cat.style.setProperty('--w' + i, w + 'px');
+  });
+  // точки остановки — строго целые пиксели, чтобы в покое котик не «дрожал» от округления
+  CAT_POS.forEach(([i, f], k) => cat.style.setProperty('--p' + k, Math.round((A[i] || 0) + ((Wd[i] || 21) - 21) * f) + 'px'));
+  if (!cat.dataset.on){ cat.dataset.on = 1; cat.style.setProperty('--cd', -(Date.now() % 300000) + 'ms'); }   // фаза по часам
+}
+
+let lastHTML = '', lastRank;
+let wasFinal = null;
+function render(){
+  const body = $('body'); let html;
+  const fin = isFinal(); wasFinal = fin;
+  $('ttl').textContent = fin ? 'Gun Game Trios · ' + L.top5 : 'Gun Game Trios';
+  if (fin){   // турнир окончен — итоговый ТОП-5 (+ своя команда, если не попала)
+    const rows = Object.entries(all).sort((a, b) => b[1] - a[1]);
+    const top = rows.filter(([n]) => rank[n] <= 5);
+    const mine = rows.filter(([n]) => picked.includes(n) && rank[n] > 5);
+    const row = ([n]) => `<div class="row f ${rank[n] <= 3 ? place(rank[n]) : ''}${picked.includes(n) ? ' me' : ''}" data-t="${esc(n)}">
+      <span class="r mono">${rank[n]}</span>
+      <div class="t"><div class="tw"><span class="tx">${esc(n)}</span>${rank[n] <= 3 ? mark(rank[n]) : ''}</div></div>
+      <span class="n mono"></span></div>`;
+    html = top.map(row).join('') + (mine.length ? '<div class="sep">···</div>' + mine.map(row).join('') : '');
+  } else if (picked.length === 1){
+    const t = picked[0], p = pts[t] || 0;
+    const hasCat = CONFIG.players && t === CAT_TEAM;
+    const nk = CONFIG.players && TEAMS[t] ? `<span class="nk">${nicks(t)}</span><span class="rk">—</span>` : '';
+    const sub = nk + `<span class="rk">#${rank[t] || ''} ${L.of} ${TOTAL}</span>`;
+    html = `<div class="one ${place(rank[t])}">
+      <div style="min-width:0"><div class="name"><span class="tx">${esc(t)}</span>${mark(rank[t])}</div>${sub ? `<div class="sub${hasCat ? ' has-cat' : ''}">${hasCat ? CAT : ''}${sub}</div>` : ''}</div>
+      <div class="pts" data-t="${esc(t)}"><span class="n mono"></span><small>${L.pts}</small></div></div>`;
+  } else {
+    const list = [...picked].sort((a, b) => (pts[b] || 0) - (pts[a] || 0));
+    html = list.map((t, i) => `<div class="row ${i === 0 && pts[t] ? 'lead' : ''} ${place(rank[t])}" data-t="${esc(t)}">
+      <span class="r mono">${rank[t] || "–"}</span>
+      <div class="t"><div class="tw"><span class="tx">${esc(t)}</span>${mark(rank[t])}</div>${CONFIG.players && TEAMS[t] ? `<span class="rn">${TEAMS[t].join(' · ')}</span>` : ''}</div>
+      <span class="n mono"></span></div>`).join('');
+  }
+  if (html !== lastHTML){   // DOM трогаем только при изменениях, чтобы анимации не перезапускались
+    body.innerHTML = lastHTML = html;
+    const r = rank[picked[0]];
+    if (picked.length === 1 && lastRank !== undefined && r && r !== lastRank) body.firstElementChild.classList.add('chg');
+    lastRank = r;
+    placeCat();
+  }
+  body.querySelectorAll('[data-t]').forEach(el => {
+    const t = el.dataset.t, n = el.querySelector('.n');
+    const v = (fin ? all[t] : pts[t]) || 0, d = String(v).length;   // баллы обновляем на месте, без пересоздания баннера
+    if (n.textContent !== String(v)) n.textContent = v;
+    n.classList.toggle('d3', d === 3); n.classList.toggle('d4', d >= 4);
+    if (prev[t] !== undefined && prev[t] !== v){ n.classList.add('bump'); setTimeout(() => n.classList.remove('bump'), 260); }
+    prev[t] = v;
+  });
+  $('dot').className = 'dot' + (live ? ' live' : Date.now() >= CONFIG.start ? ' err' : '');
+}
+
+/* таймер */
+const fmt = ms => { const s = Math.max(0, ms / 1000 | 0); return [s / 3600 | 0, (s / 60 | 0) % 60, s % 60].map(v => String(v).padStart(2, '0')).join(':'); };
+const tick = () => { const now = Date.now(), el = $('clock');
+  const txt = now < CONFIG.start ? L.start + ' ' + fmt(CONFIG.start - now) : now < CONFIG.end ? L.left + ' ' + fmt(CONFIG.end - now) : L.fin;
+  if (el.textContent !== txt) el.textContent = txt;
+  if (isFinal() !== wasFinal) render(); };   // в момент финиша баннер сам переключается на ТОП-5
+
+/* автообновление со страницы турнира */
+function parse(html){
+  const doc = new DOMParser().parseFromString(html, 'text/html'), lines = [];
+  (function walk(n){ if (n.nodeType === 3){ const t = n.textContent.trim(); if (t) lines.push(t); }
+    else if (!/^(SCRIPT|STYLE|NOSCRIPT)$/.test(n.nodeName)) n.childNodes.forEach(walk); })(doc.body);
+  let i = lines.findIndex(l => /participant progress|прогресс участник/i.test(l));
+  if (i < 0) return null;
+  const blocks = []; let cur = null;
+  for (i++; i < lines.length; i++){
+    if (/^(live stream|прямая трансляция|трансляция)$/i.test(lines[i])) break;
+    const k = LOWER.indexOf(lines[i].toLowerCase());
+    if (k >= 0){ cur = {name: NAMES[k], txt: ''}; blocks.push(cur); }
+    else if (cur) cur.txt += ' ' + lines[i];
+  }
+  const out = {};
+  for (const b of blocks){
+    if (/not available|недоступ|нет данных/i.test(b.txt)) continue;
+    const m = b.txt.match(/(\d+)\s*(?:pts|points?|балл\w*|очк\w*)/i)
+           || b.txt.match(/(?:score|points|баллы|очки)\s*[:\-]?\s*(\d+)/i);
+    if (m && +m[1] <= 99999) out[b.name] = +m[1];   // нереальные числа игнорируем
+    else { const f = [...b.txt.matchAll(/(\d+)\s*\/\s*9\b/g)].slice(0, 3);   // сумма тиров x/9
+           if (f.length) out[b.name] = f.reduce((a, x) => a + +x[1], 0); }
+  }
+  setTotal(new Set(blocks.map(b => b.name)).size);   // сколько команд в командном зачёте (после старта не меняется)
+  return Object.keys(out).length ? out : null;
+}
+/* бережный опрос сайта:
+   - до старта раз в 5 минут, во время турнира раз в poll сек, через 15 мин после конца — стоп
+   - один запрос за раз, таймаут 10 сек
+   - при ошибках сайта (429/5xx/сеть) пауза растёт ×2, до 2 минут
+   - у каждого OBS свой случайный сдвиг, чтобы все не стучались в одну секунду */
+const POLL = Math.max(10, CONFIG.poll) * 1000, STOP = CONFIG.end + 15 * 60e3;
+let backoff = 0;
+async function pull(){
+  let ok = false;
+  const ctrl = new AbortController(), to = setTimeout(() => ctrl.abort(), 10e3);
+  try {
+    const url = CONFIG.proxy ? CONFIG.proxy + encodeURIComponent(CONFIG.source) : CONFIG.source;
+    const r = await fetch(url, {cache: 'no-store', signal: ctrl.signal});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    ok = true;
+    const text = await r.text();
+    if (text.length > 3e6) throw new Error('too big');   // страница турнира ~50 КБ; гигантский ответ не разбираем
+    const data = parse(text);
+    live = !!data;
+    if (data){
+      rank = rankOf(data); all = data;
+      picked.forEach(t => { if (t in data) pts[t] = data[t]; });
+      save(); try { localStorage.setItem('ggt:all', JSON.stringify(all)); } catch(e){}
+    }
+  } catch(e){ live = false; }
+  clearTimeout(to);
+  backoff = ok ? 0 : Math.min(120e3, backoff ? backoff * 2 : POLL * 2);
+  render();
+}
+function nextDelay(){
+  const now = Date.now();
+  if (now >= STOP) return null;
+  const jit = d => d * (0.85 + Math.random() * 0.3);   // ±15%: клиенты не синхронизируются даже после общего сбоя сайта
+  if (backoff) return jit(backoff);
+  if (now < CONFIG.start - 5 * 60e3) return Math.min(5 * 60e3, CONFIG.start - 5 * 60e3 - now + Math.random() * POLL);
+  return jit(POLL);
+}
+async function loop(){
+  await pull();
+  const d = nextDelay();
+  if (d !== null) setTimeout(loop, d);
+}
+
+if (q.get('timer') === '0') $('clock').style.display = 'none';
+if (q.get('style')) document.body.classList.add('s-' + q.get('style').toLowerCase());
+render(); tick(); setInterval(tick, 1000);
+setTimeout(loop, 500 + Math.random() * 4500);   // первый запрос в окне 0,5–5 с: массовый старт OBS не бьёт в одну секунду
+if (document.fonts) document.fonts.ready.then(placeCat);
+setTimeout(placeCat, 1500);
+</script>
+</body>
+</html>
