@@ -231,7 +231,7 @@ const CONFIG = {
   team:    q.get('team') || 'perchikotiki',
   scale:   Math.min(4, Math.max(.3, +q.get('scale') || 1)),
   players: q.get('players') !== '0',
-  proxy:   q.get('proxy') || '',
+  proxy:   q.has('proxy') ? q.get('proxy') : 'https://ggt.ualexperch.workers.dev/?u=',   // мост Cloudflare (CORS + кеш 30 с); &proxy= без значения — напрямую
   poll:    Math.min(600, Math.max(10, +q.get('poll') || 60)),   // 10…600 сек, мусор → 60
   source:  'https://mrsouer.com/events/gun_game_trios',
   start:   Date.parse('2026-10-24T13:00:00Z'),   // 16:00 МСК
